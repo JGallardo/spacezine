@@ -1,14 +1,21 @@
 ---
-import { Image } from 'astro:assets';
-import type { CollectionEntry } from 'astro:content';
 import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import Header from '../components/Header.astro';
 
-type Props = CollectionEntry<'blog'>['data'];
+interface Props {
+	title: string;
+	description: string;
+	pubDate: Date;
+	updatedDate?: Date;
+	heroImage?: string;
+	author?: string;
+	categories?: Array<{ name: string; slug: string }>;
+	tags?: Array<{ name: string; slug: string }>;
+}
 
-const { title, description, pubDate, updatedDate, heroImage } = Astro.props;
+const { title, description, pubDate, updatedDate, heroImage, author, categories, tags } = Astro.props;
 ---
 
 <html lang="en">
@@ -28,25 +35,29 @@ const { title, description, pubDate, updatedDate, heroImage } = Astro.props;
 				margin: 0 auto;
 				border-radius: 12px;
 				box-shadow: var(--box-shadow);
+				width: 100%;
+				height: auto;
+				aspect-ratio: 4 / 1;
+				object-fit: cover;
 			}
 			.prose {
 				width: 720px;
-				max-width: calc(100% - 2em);
+				max-width: calc(100% - 32px);
 				margin: auto;
-				padding: 1em;
+				padding: 16px;
 				color: rgb(var(--gray-dark));
 			}
 			.title {
-				margin-bottom: 1em;
-				padding: 1em 0;
+				margin-bottom: 16px;
+				padding: 16px 0;
 				text-align: center;
 				line-height: 1;
 			}
 			.title h1 {
-				margin: 0 0 0.5em 0;
+				margin: 0 0 8px 0;
 			}
 			.date {
-				margin-bottom: 0.5em;
+				margin-bottom: 8px;
 				color: rgb(var(--gray));
 			}
 			.last-updated-on {
@@ -60,12 +71,13 @@ const { title, description, pubDate, updatedDate, heroImage } = Astro.props;
 		<main>
 			<article>
 				<div class="hero-image">
-					{heroImage && <Image width={1020} height={510} src={heroImage} alt="" />}
+					{heroImage && <img width={1020} height={510} src={heroImage} alt="" />}
 				</div>
 				<div class="prose">
 					<div class="title">
 						<div class="date">
 							<FormattedDate date={pubDate} />
+							{author && <span> • By {author}</span>}
 							{
 								updatedDate && (
 									<div class="last-updated-on">
@@ -75,6 +87,16 @@ const { title, description, pubDate, updatedDate, heroImage } = Astro.props;
 							}
 						</div>
 						<h1>{title}</h1>
+						{categories && categories.length > 0 && (
+							<div class="categories">
+								Categories: {categories.map(cat => cat.name).join(', ')}
+							</div>
+						)}
+						{tags && tags.length > 0 && (
+							<div class="tags">
+								Tags: {tags.map(tag => tag.name).join(', ')}
+							</div>
+						)}
 						<hr />
 					</div>
 					<slot />
