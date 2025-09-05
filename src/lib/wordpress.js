@@ -4,24 +4,25 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { Vibrant } from 'node-vibrant/node';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WORDPRESS_URL = process.env.WORDPRESS_URL || 'http://spacezine.local';
 const GRAPHQL_ENDPOINT = `${WORDPRESS_URL}/graphql`;
 
 /**
- * Download image from WordPress and save locally
+ * Download image from WordPress and save locally, also extract dominant color
  * @param {string} imageUrl - WordPress image URL
- * @returns {string} Local image path
+ * @returns {Object} Object with localPath and dominantColor
  */
 async function downloadImage(imageUrl) {
   if (!imageUrl || (!imageUrl.includes('.local') && !imageUrl.includes('localhost'))) {
-    return imageUrl; // Return as-is if not local
+    return { localPath: imageUrl, dominantColor: null }; // Return as-is if not local
   }
 
   try {
     const response = await fetch(imageUrl);
-    if (!response.ok) return null;
+    if (!response.ok) return { localPath: null, dominantColor: null };
     
     const imageBuffer = await response.arrayBuffer();
     const fileName = path.basename(new URL(imageUrl).pathname);
@@ -40,13 +41,26 @@ async function downloadImage(imageUrl) {
     
     // Write to both locations
     const imageData = Buffer.from(imageBuffer);
-    fs.writeFileSync(path.join(publicImagesDir, fileName), imageData);
-    fs.writeFileSync(path.join(distImagesDir, fileName), imageData);
+    const publicImagePath = path.join(publicImagesDir, fileName);
+    const distImagePath = path.join(distImagesDir, fileName);
     
-    return `/images/${fileName}`;
+    fs.writeFileSync(publicImagePath, imageData);
+    fs.writeFileSync(distImagePath, imageData);
+    
+    // Extract dominant color
+    let dominantColor = null;
+    try {
+      const palette = await Vibrant.from(publicImagePath).getPalette();
+      // Try to get a vibrant color, fallback to dominant muted color
+      dominantColor = palette.Vibrant?.hex || palette.DarkVibrant?.hex || palette.Muted?.hex || palette.DarkMuted?.hex || null;
+    } catch (colorError) {
+      console.warn(`Failed to extract color from ${fileName}:`, colorError);
+    }
+    
+    return { localPath: `/images/${fileName}`, dominantColor };
   } catch (error) {
     console.error(`Failed to download image ${imageUrl}:`, error);
-    return null;
+    return { localPath: null, dominantColor: null };
   }
 }
 
@@ -67,6 +81,10 @@ const GET_POSTS_QUERY = `
           node {
             sourceUrl
             altText
+            mediaDetails {
+              width
+              height
+            }
           }
         }
         author {
@@ -143,7 +161,11 @@ export async function fetchWordPressPosts({ first = 100 } = {}) {
 export async function transformWordPressPost(wpPost) {
   // Extract featured image and download it locally
   const originalHeroImage = wpPost.featuredImage?.node?.sourceUrl || null;
-  const heroImage = originalHeroImage ? await downloadImage(originalHeroImage) : null;
+  const imageResult = originalHeroImage ? await downloadImage(originalHeroImage) : { localPath: null, dominantColor: null };
+  const heroImage = imageResult.localPath;
+  const dominantColor = imageResult.dominantColor;
+  const imageWidth = wpPost.featuredImage?.node?.mediaDetails?.width || null;
+  const imageHeight = wpPost.featuredImage?.node?.mediaDetails?.height || null;
 
   // Clean up excerpt
   const excerpt = wpPost.excerpt 
@@ -158,9 +180,9 @@ export async function transformWordPressPost(wpPost) {
     const images = Array.from(content.matchAll(imageRegex));
     
     for (const [fullMatch, imageUrl] of images) {
-      const localImagePath = await downloadImage(imageUrl);
-      if (localImagePath) {
-        content = content.replace(fullMatch, `src="${localImagePath}"`);
+      const imageResult = await downloadImage(imageUrl);
+      if (imageResult.localPath) {
+        content = content.replace(fullMatch, `src="${imageResult.localPath}"`);
       } else {
         content = content.replace(fullMatch, 'src=""');
       }
@@ -185,6 +207,9 @@ export async function transformWordPressPost(wpPost) {
       description: excerpt,
       pubDate: new Date(wpPost.date),
       heroImage,
+      imageWidth,
+      imageHeight,
+      dominantColor,
       author: wpPost.author?.node?.name,
       categories: wpPost.categories?.nodes || [],
       tags: wpPost.tags?.nodes || [],
