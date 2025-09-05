@@ -10,12 +10,15 @@ interface Props {
 	pubDate: Date;
 	updatedDate?: Date;
 	heroImage?: string;
+	imageWidth?: number;
+	imageHeight?: number;
+	dominantColor?: string;
 	author?: string;
 	categories?: Array<{ name: string; slug: string }>;
 	tags?: Array<{ name: string; slug: string }>;
 }
 
-const { title, description, pubDate, updatedDate, heroImage, author, categories, tags } = Astro.props;
+const { title, description, pubDate, updatedDate, heroImage, imageWidth, imageHeight, dominantColor, author, categories, tags } = Astro.props;
 ---
 
 <html lang="en">
@@ -30,11 +33,15 @@ const { title, description, pubDate, updatedDate, heroImage, author, categories,
 			.hero-image {
 				width: 100%;
 			}
+			.image-container {
+				background-color: #f0f0f0;
+				border-radius: 12px;
+				overflow: hidden;
+				box-shadow: var(--box-shadow);
+			}
 			.hero-image img {
 				display: block;
 				margin: 0 auto;
-				border-radius: 12px;
-				box-shadow: var(--box-shadow);
 				width: 100%;
 				height: auto;
 				aspect-ratio: 4 / 1;
@@ -71,7 +78,19 @@ const { title, description, pubDate, updatedDate, heroImage, author, categories,
 		<main>
 			<article>
 				<div class="hero-image">
-					{heroImage && <img width={1020} height={510} src={heroImage} alt="" />}
+					{heroImage && (
+						<div 
+							class="image-container"
+							style={dominantColor ? `background-color: ${dominantColor}` : undefined}
+						>
+							<img 
+								width={imageWidth || 1020} 
+								height={imageHeight || 510} 
+								src={heroImage} 
+								alt="" 
+							/>
+						</div>
+					)}
 				</div>
 				<div class="prose">
 					<div class="title">
