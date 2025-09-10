@@ -36,6 +36,7 @@ const remainingPosts = allPosts.slice(12);
 				break-inside: avoid;
 				margin-bottom: 16px;
 				transition: all 0.2s ease;
+				display: block;
 			}
 			
 			.masonry-item:hover {
@@ -63,6 +64,10 @@ const remainingPosts = allPosts.slice(12);
 				overflow: hidden;
 				margin-bottom: 8px;
 				transition: 0.2s ease;
+				position: relative;
+				width: 100%;
+				height: 0;
+				padding-bottom: var(--img-padding);
 			}
 			
 			.masonry-item:hover .image-container {
@@ -70,8 +75,38 @@ const remainingPosts = allPosts.slice(12);
 			}
 			
 			.image-container img {
-				margin-bottom: 0;
+				position: absolute;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+				margin: 0;
 				border-radius: 0;
+			}
+			
+			.image-container::before {
+				content: '';
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+				width: 20px;
+				height: 20px;
+				border: 2px solid #ddd;
+				border-top: 2px solid #666;
+				border-radius: 50%;
+				animation: spin 1s linear infinite;
+				z-index: 1;
+			}
+			
+			.image-container.loaded::before {
+				display: none;
+			}
+			
+			@keyframes spin {
+				0% { transform: translate(-50%, -50%) rotate(0deg); }
+				100% { transform: translate(-50%, -50%) rotate(360deg); }
 			}
 			
 			.masonry-item .title {
@@ -117,32 +152,61 @@ const remainingPosts = allPosts.slice(12);
 		</style>
 		<script>
 			document.addEventListener('DOMContentLoaded', () => {
-				// Show remaining posts after initial load
+				// Show loading message for 3 seconds
+				const loadingMessage = document.createElement('div');
+				loadingMessage.textContent = 'Loading...';
+				loadingMessage.style.cssText = `
+					position: fixed;
+					top: 50%;
+					left: 50%;
+					transform: translate(-50%, -50%);
+					background: rgba(0,0,0,0.8);
+					color: white;
+					padding: 20px 40px;
+					border-radius: 8px;
+					font-size: 18px;
+					z-index: 1000;
+				`;
+				document.body.appendChild(loadingMessage);
+				
 				setTimeout(() => {
+					loadingMessage.remove();
+					
 					const lazyItems = document.querySelectorAll('.lazy-item');
-					let index = 0;
-					
-					const showNext = () => {
-						if (index < lazyItems.length) {
-							const item = lazyItems[index];
-							const img = item.querySelector('img[data-src]');
-							
-							// Set src from data-src
-							if (img && img.dataset.src) {
-								img.src = img.dataset.src;
-								img.removeAttribute('data-src');
-							}
-							
-							item.style.display = 'block';
-							index++;
-							
-							// Show next item after a short delay
-							setTimeout(showNext, 200);
+
+					lazyItems.forEach(item => {
+						item.style.display = 'block';
+						const img = item.querySelector('img[data-src]');
+						if (img) {
+							img.style.opacity = '0';
 						}
-					};
-					
-					showNext();
-				}, 1000);
+					});
+
+					setTimeout(() => {
+						let index = 0;
+						const loadNext = () => {
+							if (index < lazyItems.length) {
+								const item = lazyItems[index];
+								const img = item.querySelector('img[data-src]');
+								const container = item.querySelector('.image-container');
+								
+								if (img && img.dataset.src) {
+									img.onload = () => {
+										container.classList.add('loaded');
+										img.style.opacity = '1';
+										img.style.transition = 'opacity 0.3s ease';
+									};
+									img.src = img.dataset.src;
+									img.removeAttribute('data-src');
+								}
+								
+								index++;
+								setTimeout(loadNext, 100);
+							}
+						};
+						loadNext();
+					}, 500);
+				}, 3000);
 			});
 		</script>
 	</head>
@@ -157,8 +221,13 @@ const remainingPosts = allPosts.slice(12);
 								<a href={`/archive/${post.slug}/`}>
 									{post.data.heroImage && (
 										<div 
-											class="image-container"
-											style={post.data.dominantColor ? `background-color: ${post.data.dominantColor}` : undefined}
+											class="image-container loaded"
+											style={{
+												'--img-padding': post.data.imageWidth && post.data.imageHeight 
+													? `${((post.data.imageHeight / post.data.imageWidth) * 100).toFixed(2)}%` 
+													: '75%',
+												...(post.data.dominantColor ? { 'background-color': post.data.dominantColor } : {})
+											}}
 										>
 											<img 
 												src={post.data.heroImage} 
@@ -184,7 +253,12 @@ const remainingPosts = allPosts.slice(12);
 									{post.data.heroImage && (
 										<div 
 											class="image-container"
-											style={post.data.dominantColor ? `background-color: ${post.data.dominantColor}` : undefined}
+											style={{
+												'--img-padding': post.data.imageWidth && post.data.imageHeight 
+													? `${((post.data.imageHeight / post.data.imageWidth) * 100).toFixed(2)}%` 
+													: '75%',
+												...(post.data.dominantColor ? { 'background-color': post.data.dominantColor } : {})
+											}}
 										>
 											<img 
 												data-src={post.data.heroImage} 

@@ -47,6 +47,36 @@ const posts = (await getWordPressPosts())
         border-radius: 12px;
         overflow: hidden;
         box-shadow: var(--box-shadow);
+        position: relative;
+        min-height: 300px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .image-container::before {
+        content: '';
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top: 2px solid rgba(255,255,255,0.8);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        z-index: 1;
+      }
+      
+      .image-container img {
+        opacity: 0;
+        transition: opacity 0.5s ease;
+      }
+      
+      .image-container img.loaded {
+        opacity: 1;
+      }
+      
+      .image-container.loaded::before {
+        display: none;
       }
       
       .hero-image img {
@@ -76,6 +106,11 @@ const posts = (await getWordPressPosts())
           order: 2;
         }
       }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
     </style>
   </head>
   <body>
@@ -84,7 +119,14 @@ const posts = (await getWordPressPosts())
       <div class="hero-section">
         <div class="hero-image">
           <div class="image-container">
-            <img src="/images/space-shark.webp" alt="Space shark artwork" width="1024" height="999" />
+            <img 
+              src="/images/space-shark-hero.webp" 
+              alt="Space shark artwork" 
+              width="800" 
+              height="780" 
+              loading="eager"
+              fetchpriority="high"
+            />
           </div>
         </div>
         <div class="hero-content">
@@ -101,5 +143,23 @@ const posts = (await getWordPressPosts())
       </div>
     </main>
     <Footer />
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const img = document.querySelector('.hero-image img');
+        const container = document.querySelector('.image-container');
+        
+        if (img && container) {
+          img.onload = () => {
+            img.classList.add('loaded');
+            container.classList.add('loaded');
+          };
+
+          if (img.complete) {
+            img.classList.add('loaded');
+            container.classList.add('loaded');
+          }
+        }
+      });
+    </script>
   </body>
 </html>
