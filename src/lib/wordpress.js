@@ -11,55 +11,33 @@ const WORDPRESS_URL = process.env.WORDPRESS_URL || 'http://spacezine.local';
 const GRAPHQL_ENDPOINT = `${WORDPRESS_URL}/graphql`;
 
 /**
- * Download image from WordPress and save locally, also extract dominant color
+ * Get local WebP image path if it exists, otherwise return null
+ * Images should be synced using: npm run sync-images
  * @param {string} imageUrl - WordPress image URL
  * @returns {Object} Object with localPath and dominantColor
  */
-async function downloadImage(imageUrl) {
+function getLocalImage(imageUrl) {
   if (!imageUrl || (!imageUrl.includes('.local') && !imageUrl.includes('localhost'))) {
     return { localPath: imageUrl, dominantColor: null }; // Return as-is if not local
   }
 
   try {
-    const response = await fetch(imageUrl);
-    if (!response.ok) return { localPath: null, dominantColor: null };
-    
-    const imageBuffer = await response.arrayBuffer();
     const fileName = path.basename(new URL(imageUrl).pathname);
+    const webpFileName = fileName.replace(/\.(jpg|jpeg|png)$/i, '.webp');
     
-    // Save to both public (for dev server) and dist (for production build)
     const publicImagesDir = path.join(__dirname, '../../public/images');
-    const distImagesDir = path.join(__dirname, '../../dist/images');
+    const webpPublicPath = path.join(publicImagesDir, webpFileName);
     
-    // Create images directories if they don't exist
-    if (!fs.existsSync(publicImagesDir)) {
-      fs.mkdirSync(publicImagesDir, { recursive: true });
-    }
-    if (!fs.existsSync(distImagesDir)) {
-      fs.mkdirSync(distImagesDir, { recursive: true });
+    // Check if local WebP exists
+    if (fs.existsSync(webpPublicPath)) {
+      return { localPath: `/images/${webpFileName}`, dominantColor: null };
     }
     
-    // Write to both locations
-    const imageData = Buffer.from(imageBuffer);
-    const publicImagePath = path.join(publicImagesDir, fileName);
-    const distImagePath = path.join(distImagesDir, fileName);
-    
-    fs.writeFileSync(publicImagePath, imageData);
-    fs.writeFileSync(distImagePath, imageData);
-    
-    // Extract dominant color
-    let dominantColor = null;
-    try {
-      const palette = await Vibrant.from(publicImagePath).getPalette();
-      // Try to get a vibrant color, fallback to dominant muted color
-      dominantColor = palette.Vibrant?.hex || palette.DarkVibrant?.hex || palette.Muted?.hex || palette.DarkMuted?.hex || null;
-    } catch (colorError) {
-      console.warn(`Failed to extract color from ${fileName}:`, colorError);
-    }
-    
-    return { localPath: `/images/${fileName}`, dominantColor };
+    // If no local WebP, warn and return null
+    console.warn(`⚠️  Local image not found: ${webpFileName}. Run 'npm run sync-images' to download from WordPress.`);
+    return { localPath: null, dominantColor: null };
   } catch (error) {
-    console.error(`Failed to download image ${imageUrl}:`, error);
+    console.error(`Failed to check local image ${imageUrl}:`, error);
     return { localPath: null, dominantColor: null };
   }
 }
@@ -159,9 +137,9 @@ export async function fetchWordPressPosts({ first = 100 } = {}) {
  * @returns {Promise<Object>} Astro-compatible post object
  */
 export async function transformWordPressPost(wpPost) {
-  // Extract featured image and download it locally
+  // Get local image path (no downloading)
   const originalHeroImage = wpPost.featuredImage?.node?.sourceUrl || null;
-  const imageResult = originalHeroImage ? await downloadImage(originalHeroImage) : { localPath: null, dominantColor: null };
+  const imageResult = originalHeroImage ? getLocalImage(originalHeroImage) : { localPath: null, dominantColor: null };
   const heroImage = imageResult.localPath;
   const dominantColor = imageResult.dominantColor;
   const imageWidth = wpPost.featuredImage?.node?.mediaDetails?.width || null;
@@ -180,7 +158,7 @@ export async function transformWordPressPost(wpPost) {
     const images = Array.from(content.matchAll(imageRegex));
     
     for (const [fullMatch, imageUrl] of images) {
-      const imageResult = await downloadImage(imageUrl);
+      const imageResult = getLocalImage(imageUrl);
       if (imageResult.localPath) {
         content = content.replace(fullMatch, `src="${imageResult.localPath}"`);
       } else {

@@ -79,12 +79,27 @@ const WORDPRESS_URL = process.env.WORDPRESS_URL || 'http://spacezine.local';
 
 ## Build Process
 
-The build process fetches content from WordPress and downloads all images locally:
+This project uses a **two-step build process** optimized for performance and reliability:
 
-1. **Content Fetching**: Retrieves posts via GraphQL from WordPress
-2. **Image Processing**: Downloads WordPress images to both `public/images/` (dev) and `dist/images/` (production)
-3. **Static Generation**: Creates static HTML files for all posts and pages
-4. **Self-Contained Output**: The `dist/` folder contains everything needed for deployment
+### Step 1: Image Sync (Manual)
+```bash
+npm run sync-images
+```
+
+- **Downloads images**: Fetches all WordPress images locally
+- **WebP conversion**: Converts images to optimized WebP format
+- **One-time process**: Only run when WordPress content changes
+- **Requires WordPress**: Local WordPress must be running
+
+### Step 2: Site Build (Fast)
+```bash
+npm run build
+```
+
+- **Static generation**: Creates HTML files using locally cached images
+- **WordPress independent**: Works without WordPress running
+- **Fast execution**: No image downloading or processing
+- **Production ready**: Generates deployable `dist/` folder
 
 ### Why dist/ is Committed
 
@@ -104,15 +119,35 @@ All commands are run from the root of the project:
 |:--------|:-------|
 | `npm install` | Install dependencies |
 | `npm run dev` | Start dev server at `localhost:4321` |
-| `npm run build` | **Build with WordPress running** - fetches content and images |
+| `npm run sync-images` | **Sync WordPress images** - downloads and converts to WebP |
+| `npm run build` | Build site using local images (fast, WordPress not required) |
 | `npm run preview` | Preview built site locally |
 
 ## Development Workflow
 
-1. **Start WordPress**: Ensure your local WordPress site is running
-2. **Development**: `npm run dev` for live development
-3. **Content Updates**: When WordPress content changes, run `npm run build`
-4. **Deployment**: Commit the updated `dist/` folder and push to trigger Netlify deployment
+### Daily Development
+1. **Development**: `npm run dev` for live development
+2. **WordPress not required**: Site runs from cached images and content
+
+### Content Updates (Rare)
+1. **Start WordPress**: Ensure your local WordPress site is running  
+2. **Sync images**: `npm run sync-images` to download new/updated images
+3. **Build site**: `npm run build` to generate updated static files
+4. **Commit changes**: Add new WebP images and updated dist/ files to git
+5. **Deploy**: Push to trigger automatic Netlify deployment
+
+### Typical Development Session
+```bash
+# Regular development (no WordPress needed)
+npm run dev
+
+# When you add content to WordPress
+npm run sync-images  # Downloads and converts new images
+npm run build        # Fast build using cached images
+git add -A           # Stage new images and dist updates  
+git commit -m "Content update with new images"
+git push             # Deploy to Netlify
+```
 
 ## WordPress-Free Operation
 
@@ -134,10 +169,13 @@ This project uses a **"build locally, deploy statically"** approach that's ideal
 
 The site deploys automatically via Netlify's git integration:
 
-1. **Local Build**: Run `npm run build` with WordPress running locally
-2. **Commit & Push**: Commit the updated `dist/` folder and push to your main branch
-3. **Netlify Detection**: Netlify detects the git push via webhook
-4. **Automatic Deployment**: Netlify skips the build process and deploys the committed `dist/` folder directly
+1. **Sync Images**: Run `npm run sync-images` when WordPress content changes
+2. **Build Site**: Run `npm run build` using cached local images  
+3. **Commit & Push**: Commit new images and updated `dist/` folder to your main branch
+4. **Netlify Detection**: Netlify detects the git push via webhook
+5. **Automatic Deployment**: Netlify skips the build process and deploys the committed `dist/` folder directly
+
+> **Key Advantage**: No WordPress dependency during deployment - images are pre-processed and committed to git
 
 #### Netlify Configuration
 
