@@ -4,10 +4,10 @@ import Button from '../components/Button.astro';
 import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
 import { SITE_AUTHOR, SITE_DESCRIPTION, SITE_TITLE } from '../consts';
-import { getWordPressPosts } from '../lib/wordpress.js';
+import { getStaticPosts } from '../data/posts-static.js';
 
-// Get WordPress posts for preloading
-const posts = (await getWordPressPosts())
+// Get static posts for preloading
+const posts = getStaticPosts()
   .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
   .slice(0, 10); // Preload first 10 most recent posts
 ---
@@ -43,40 +43,13 @@ const posts = (await getWordPressPosts())
       }
       
       .image-container {
-        background-color: #87CEEB;
         border-radius: 12px;
         overflow: hidden;
         box-shadow: var(--box-shadow);
-        position: relative;
-        min-height: 300px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      
-      .image-container::before {
-        content: '';
-        position: absolute;
-        width: 20px;
-        height: 20px;
-        border: 2px solid rgba(255,255,255,0.3);
-        border-top: 2px solid rgba(255,255,255,0.8);
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        z-index: 1;
       }
       
       .image-container img {
-        opacity: 0;
-        transition: opacity 0.5s ease;
-      }
-      
-      .image-container img.loaded {
         opacity: 1;
-      }
-      
-      .image-container.loaded::before {
-        display: none;
       }
       
       .hero-image img {
@@ -107,10 +80,6 @@ const posts = (await getWordPressPosts())
         }
       }
       
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
     </style>
   </head>
   <body>
@@ -143,23 +112,5 @@ const posts = (await getWordPressPosts())
       </div>
     </main>
     <Footer />
-    <script>
-      document.addEventListener('DOMContentLoaded', () => {
-        const img = document.querySelector('.hero-image img');
-        const container = document.querySelector('.image-container');
-        
-        if (img && container) {
-          img.onload = () => {
-            img.classList.add('loaded');
-            container.classList.add('loaded');
-          };
-
-          if (img.complete) {
-            img.classList.add('loaded');
-            container.classList.add('loaded');
-          }
-        }
-      });
-    </script>
   </body>
 </html>

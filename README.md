@@ -79,26 +79,36 @@ const WORDPRESS_URL = process.env.WORDPRESS_URL || 'http://spacezine.local';
 
 ## Build Process
 
-This project uses a **two-step build process** optimized for performance and reliability:
+This project uses a **static data approach** with two sync commands for optimal performance:
 
-### Step 1: Image Sync (Manual)
+### Content Sync (When WordPress content changes)
+```bash
+npm run sync-data
+```
+
+- **Fetches content**: Downloads all WordPress posts, titles, dates, etc.
+- **Creates static JSON**: Saves to `src/data/posts.json` for instant loading
+- **One-time process**: Only run when WordPress content is updated
+- **Requires WordPress**: Local WordPress must be running
+
+### Image Sync (When WordPress images change)
 ```bash
 npm run sync-images
 ```
 
 - **Downloads images**: Fetches all WordPress images locally
 - **WebP conversion**: Converts images to optimized WebP format
-- **One-time process**: Only run when WordPress content changes
+- **One-time process**: Only run when new images are uploaded
 - **Requires WordPress**: Local WordPress must be running
 
-### Step 2: Site Build (Fast)
+### Site Build (Fast)
 ```bash
 npm run build
 ```
 
-- **Static generation**: Creates HTML files using locally cached images
+- **Static generation**: Creates HTML files using cached data and images
 - **WordPress independent**: Works without WordPress running
-- **Fast execution**: No image downloading or processing
+- **Fast execution**: No WordPress API calls or image processing
 - **Production ready**: Generates deployable `dist/` folder
 
 ### Why dist/ is Committed
@@ -119,33 +129,40 @@ All commands are run from the root of the project:
 |:--------|:-------|
 | `npm install` | Install dependencies |
 | `npm run dev` | Start dev server at `localhost:4321` |
+| `npm run sync-data` | **Sync WordPress content** - fetches posts, titles, dates to static JSON |
 | `npm run sync-images` | **Sync WordPress images** - downloads and converts to WebP |
-| `npm run build` | Build site using local images (fast, WordPress not required) |
+| `npm run build` | Build site using cached data and images (fast, WordPress not required) |
 | `npm run preview` | Preview built site locally |
 
 ## Development Workflow
 
 ### Daily Development
 1. **Development**: `npm run dev` for live development
-2. **WordPress not required**: Site runs from cached images and content
+2. **WordPress not required**: Site runs from cached static data and images
 
-### Content Updates (Rare)
+### Content Updates (When WordPress changes)
 1. **Start WordPress**: Ensure your local WordPress site is running  
-2. **Sync images**: `npm run sync-images` to download new/updated images
-3. **Build site**: `npm run build` to generate updated static files
-4. **Commit changes**: Add new WebP images and updated dist/ files to git
-5. **Deploy**: Push to trigger automatic Netlify deployment
+2. **Sync content**: `npm run sync-data` when posts/titles/dates change
+3. **Sync images**: `npm run sync-images` when new images are uploaded
+4. **Build site**: `npm run build` to generate updated static files
+5. **Commit changes**: Add new data/images and updated dist/ files to git
+6. **Deploy**: Push to trigger automatic Netlify deployment
 
 ### Typical Development Session
 ```bash
 # Regular development (no WordPress needed)
 npm run dev
 
-# When you add content to WordPress
+# When you edit WordPress content (posts, titles, dates)
+npm run sync-data    # Fetches latest content to static JSON
+
+# When you upload new WordPress images  
 npm run sync-images  # Downloads and converts new images
-npm run build        # Fast build using cached images
-git add -A           # Stage new images and dist updates  
-git commit -m "Content update with new images"
+
+# Generate updated site
+npm run build        # Fast build using cached data and images
+git add -A           # Stage new content/images and dist updates  
+git commit -m "Content update with latest posts"
 git push             # Deploy to Netlify
 ```
 
@@ -169,13 +186,14 @@ This project uses a **"build locally, deploy statically"** approach that's ideal
 
 The site deploys automatically via Netlify's git integration:
 
-1. **Sync Images**: Run `npm run sync-images` when WordPress content changes
-2. **Build Site**: Run `npm run build` using cached local images  
-3. **Commit & Push**: Commit new images and updated `dist/` folder to your main branch
-4. **Netlify Detection**: Netlify detects the git push via webhook
-5. **Automatic Deployment**: Netlify skips the build process and deploys the committed `dist/` folder directly
+1. **Sync Content**: Run `npm run sync-data` when WordPress content changes
+2. **Sync Images**: Run `npm run sync-images` when WordPress images change
+3. **Build Site**: Run `npm run build` using cached data and images  
+4. **Commit & Push**: Commit new data/images and updated `dist/` folder to your main branch
+5. **Netlify Detection**: Netlify detects the git push via webhook
+6. **Automatic Deployment**: Netlify skips the build process and deploys the committed `dist/` folder directly
 
-> **Key Advantage**: No WordPress dependency during deployment - images are pre-processed and committed to git
+> **Key Advantage**: No WordPress dependency during deployment - content and images are pre-processed and committed to git
 
 #### Netlify Configuration
 

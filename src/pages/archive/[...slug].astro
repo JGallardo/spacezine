@@ -1,9 +1,9 @@
 ---
 import BlogPost from '../../layouts/BlogPost.astro';
-import { getWordPressPosts } from '../../lib/wordpress.js';
+import { getStaticPosts } from '../../data/posts-static.js';
 
 export async function getStaticPaths() {
-	const posts = await getWordPressPosts();
+	const posts = getStaticPosts();
 	return posts.map((post) => ({
 		params: { slug: post.slug },
 		props: post,

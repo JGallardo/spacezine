@@ -1,9 +1,9 @@
 import rss from '@astrojs/rss';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
-import { getWordPressPosts } from '../lib/wordpress.js';
+import { getStaticPosts } from '../data/posts-static.js';
 
 export async function GET(context) {
-	const posts = await getWordPressPosts();
+	const posts = getStaticPosts();
 	return rss({
 		title: SITE_TITLE,
 		description: SITE_DESCRIPTION,

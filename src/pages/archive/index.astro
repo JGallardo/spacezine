@@ -5,12 +5,10 @@ import Footer from '../../components/Footer.astro';
 import FormattedDate from '../../components/FormattedDate.astro';
 import Header from '../../components/Header.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
-import { getWordPressPosts } from '../../lib/wordpress.js';
+import { getStaticPosts } from '../../data/posts-static.js';
 
-const allPosts = (await getWordPressPosts())
+const allPosts = getStaticPosts()
 	.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
-const initialPosts = allPosts.slice(0, 12);
-const remainingPosts = allPosts.slice(12);
 ---
 
 <!doctype html>
@@ -85,29 +83,6 @@ const remainingPosts = allPosts.slice(12);
 				border-radius: 0;
 			}
 			
-			.image-container::before {
-				content: '';
-				position: absolute;
-				top: 50%;
-				left: 50%;
-				transform: translate(-50%, -50%);
-				width: 20px;
-				height: 20px;
-				border: 2px solid #ddd;
-				border-top: 2px solid #666;
-				border-radius: 50%;
-				animation: spin 1s linear infinite;
-				z-index: 1;
-			}
-			
-			.image-container.loaded::before {
-				display: none;
-			}
-			
-			@keyframes spin {
-				0% { transform: translate(-50%, -50%) rotate(0deg); }
-				100% { transform: translate(-50%, -50%) rotate(360deg); }
-			}
 			
 			.masonry-item .title {
 				margin: 0 0 4px 0;
@@ -150,65 +125,6 @@ const remainingPosts = allPosts.slice(12);
 				}
 			}
 		</style>
-		<script>
-			document.addEventListener('DOMContentLoaded', () => {
-				// Show loading message for 3 seconds
-				const loadingMessage = document.createElement('div');
-				loadingMessage.textContent = 'Loading...';
-				loadingMessage.style.cssText = `
-					position: fixed;
-					top: 50%;
-					left: 50%;
-					transform: translate(-50%, -50%);
-					background: rgba(0,0,0,0.8);
-					color: white;
-					padding: 20px 40px;
-					border-radius: 8px;
-					font-size: 18px;
-					z-index: 1000;
-				`;
-				document.body.appendChild(loadingMessage);
-				
-				setTimeout(() => {
-					loadingMessage.remove();
-					
-					const lazyItems = document.querySelectorAll('.lazy-item');
-
-					lazyItems.forEach(item => {
-						item.style.display = 'block';
-						const img = item.querySelector('img[data-src]');
-						if (img) {
-							img.style.opacity = '0';
-						}
-					});
-
-					setTimeout(() => {
-						let index = 0;
-						const loadNext = () => {
-							if (index < lazyItems.length) {
-								const item = lazyItems[index];
-								const img = item.querySelector('img[data-src]');
-								const container = item.querySelector('.image-container');
-								
-								if (img && img.dataset.src) {
-									img.onload = () => {
-										container.classList.add('loaded');
-										img.style.opacity = '1';
-										img.style.transition = 'opacity 0.3s ease';
-									};
-									img.src = img.dataset.src;
-									img.removeAttribute('data-src');
-								}
-								
-								index++;
-								setTimeout(loadNext, 100);
-							}
-						};
-						loadNext();
-					}, 500);
-				}, 3000);
-			});
-		</script>
 	</head>
 	<body>
 		<Header />
@@ -216,39 +132,8 @@ const remainingPosts = allPosts.slice(12);
 			<section>
 				<ul class="masonry-grid">
 					{
-						initialPosts.map((post, index) => (
+						allPosts.map((post, index) => (
 							<li class="masonry-item">
-								<a href={`/archive/${post.slug}/`}>
-									{post.data.heroImage && (
-										<div 
-											class="image-container loaded"
-											style={{
-												'--img-padding': post.data.imageWidth && post.data.imageHeight 
-													? `${((post.data.imageHeight / post.data.imageWidth) * 100).toFixed(2)}%` 
-													: '75%',
-												'--bg-color': post.data.dominantColor || '#f0f0f0'
-											}}
-										>
-											<img 
-												src={post.data.heroImage} 
-												alt={post.data.title}
-												width={post.data.imageWidth}
-												height={post.data.imageHeight}
-												loading={index < 6 ? "eager" : "lazy"}
-											/>
-										</div>
-									)}
-									<h4 class="title">{post.data.title}</h4>
-									<p class="date">
-										<FormattedDate date={post.data.pubDate} />
-									</p>
-								</a>
-							</li>
-						))
-					}
-					{
-						remainingPosts.map((post) => (
-							<li class="masonry-item lazy-item" style="display: none;">
 								<a href={`/archive/${post.slug}/`}>
 									{post.data.heroImage && (
 										<div 
@@ -261,11 +146,11 @@ const remainingPosts = allPosts.slice(12);
 											}}
 										>
 											<img 
-												data-src={post.data.heroImage} 
+												src={post.data.heroImage} 
 												alt={post.data.title}
 												width={post.data.imageWidth}
 												height={post.data.imageHeight}
-												loading="lazy"
+												loading={index < 12 ? "eager" : "lazy"}
 											/>
 										</div>
 									)}
