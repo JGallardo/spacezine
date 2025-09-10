@@ -6,7 +6,6 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { Vibrant } from 'node-vibrant/node';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WORDPRESS_URL = process.env.WORDPRESS_URL || 'http://spacezine.local';
@@ -17,7 +16,7 @@ const GRAPHQL_ENDPOINT = `${WORDPRESS_URL}/graphql`;
  */
 async function downloadAndConvertImage(imageUrl) {
   if (!imageUrl || (!imageUrl.includes('.local') && !imageUrl.includes('localhost'))) {
-    return { localPath: imageUrl, dominantColor: null };
+    return imageUrl;
   }
 
   try {
@@ -32,14 +31,14 @@ async function downloadAndConvertImage(imageUrl) {
     // Check if WebP already exists
     if (fs.existsSync(webpPublicPath)) {
       console.log(`✓ WebP already exists: ${webpFileName}`);
-      return { localPath: `/images/${webpFileName}`, dominantColor: null };
+      return `/images/${webpFileName}`;
     }
     
     console.log(`📥 Downloading: ${fileName}`);
     const response = await fetch(imageUrl);
     if (!response.ok) {
       console.error(`❌ Failed to download ${imageUrl}: ${response.status}`);
-      return { localPath: null, dominantColor: null };
+      return null;
     }
     
     const imageBuffer = await response.arrayBuffer();
@@ -73,25 +72,13 @@ async function downloadAndConvertImage(imageUrl) {
       console.log(`✅ Converted: ${fileName} → ${webpFileName}`);
     } catch (conversionError) {
       console.error(`❌ WebP conversion failed for ${fileName}:`, conversionError.message);
-      return { localPath: `/images/${fileName}`, dominantColor: null };
+      return `/images/${fileName}`;
     }
     
-    // Extract dominant color
-    let dominantColor = null;
-    try {
-      const palette = await Vibrant.from(webpPublicPath).getPalette();
-      dominantColor = palette.Vibrant?.hex || palette.DarkVibrant?.hex || palette.Muted?.hex || palette.DarkMuted?.hex || null;
-      if (dominantColor) {
-        console.log(`🎨 Extracted color: ${dominantColor}`);
-      }
-    } catch (colorError) {
-      console.warn(`⚠️  Color extraction failed for ${webpFileName}`);
-    }
-    
-    return { localPath: `/images/${webpFileName}`, dominantColor };
+    return `/images/${webpFileName}`;
   } catch (error) {
     console.error(`❌ Failed to process ${imageUrl}:`, error.message);
-    return { localPath: null, dominantColor: null };
+    return null;
   }
 }
 
@@ -172,9 +159,9 @@ async function syncImages() {
       console.log(`\n📝 Processing: ${post.title}`);
       const result = await downloadAndConvertImage(heroImage);
       
-      if (result.localPath && result.localPath.includes('/images/')) {
+      if (result && result.includes('/images/')) {
         processed++;
-      } else if (result.localPath) {
+      } else if (result) {
         skipped++;
       } else {
         failed++;

@@ -4,7 +4,6 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { Vibrant } from 'node-vibrant/node';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WORDPRESS_URL = process.env.WORDPRESS_URL || 'http://spacezine.local';
@@ -18,7 +17,7 @@ const GRAPHQL_ENDPOINT = `${WORDPRESS_URL}/graphql`;
  */
 function getLocalImage(imageUrl) {
   if (!imageUrl || (!imageUrl.includes('.local') && !imageUrl.includes('localhost'))) {
-    return { localPath: imageUrl, dominantColor: null }; // Return as-is if not local
+    return imageUrl; // Return as-is if not local
   }
 
   try {
@@ -30,15 +29,15 @@ function getLocalImage(imageUrl) {
     
     // Check if local WebP exists
     if (fs.existsSync(webpPublicPath)) {
-      return { localPath: `/images/${webpFileName}`, dominantColor: null };
+      return `/images/${webpFileName}`;
     }
     
     // If no local WebP, warn and return null
     console.warn(`⚠️  Local image not found: ${webpFileName}. Run 'npm run sync-images' to download from WordPress.`);
-    return { localPath: null, dominantColor: null };
+    return null;
   } catch (error) {
     console.error(`Failed to check local image ${imageUrl}:`, error);
-    return { localPath: null, dominantColor: null };
+    return null;
   }
 }
 
@@ -139,9 +138,7 @@ export async function fetchWordPressPosts({ first = 100 } = {}) {
 export async function transformWordPressPost(wpPost) {
   // Get local image path (no downloading)
   const originalHeroImage = wpPost.featuredImage?.node?.sourceUrl || null;
-  const imageResult = originalHeroImage ? getLocalImage(originalHeroImage) : { localPath: null, dominantColor: null };
-  const heroImage = imageResult.localPath;
-  const dominantColor = imageResult.dominantColor;
+  const heroImage = originalHeroImage ? getLocalImage(originalHeroImage) : null;
   const imageWidth = wpPost.featuredImage?.node?.mediaDetails?.width || null;
   const imageHeight = wpPost.featuredImage?.node?.mediaDetails?.height || null;
 
@@ -158,9 +155,9 @@ export async function transformWordPressPost(wpPost) {
     const images = Array.from(content.matchAll(imageRegex));
     
     for (const [fullMatch, imageUrl] of images) {
-      const imageResult = getLocalImage(imageUrl);
-      if (imageResult.localPath) {
-        content = content.replace(fullMatch, `src="${imageResult.localPath}"`);
+      const localPath = getLocalImage(imageUrl);
+      if (localPath) {
+        content = content.replace(fullMatch, `src="${localPath}"`);
       } else {
         content = content.replace(fullMatch, 'src=""');
       }
@@ -187,7 +184,6 @@ export async function transformWordPressPost(wpPost) {
       heroImage,
       imageWidth,
       imageHeight,
-      dominantColor,
       author: wpPost.author?.node?.name,
       categories: wpPost.categories?.nodes || [],
       tags: wpPost.tags?.nodes || [],
