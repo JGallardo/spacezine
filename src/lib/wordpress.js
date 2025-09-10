@@ -17,7 +17,7 @@ const GRAPHQL_ENDPOINT = `${WORDPRESS_URL}/graphql`;
  */
 function getLocalImage(imageUrl) {
   if (!imageUrl || (!imageUrl.includes('.local') && !imageUrl.includes('localhost'))) {
-    return imageUrl; // Return as-is if not local
+    return { localPath: imageUrl, dominantColor: null }; // Return as-is if not local
   }
 
   try {
@@ -25,19 +25,32 @@ function getLocalImage(imageUrl) {
     const webpFileName = fileName.replace(/\.(jpg|jpeg|png)$/i, '.webp');
     
     const publicImagesDir = path.join(__dirname, '../../public/images');
+    const metaDir = path.join(__dirname, '../../public/images/meta');
     const webpPublicPath = path.join(publicImagesDir, webpFileName);
+    const metaFile = path.join(metaDir, `${webpFileName}.json`);
     
     // Check if local WebP exists
     if (fs.existsSync(webpPublicPath)) {
-      return `/images/${webpFileName}`;
+      // Try to read color metadata
+      let dominantColor = null;
+      if (fs.existsSync(metaFile)) {
+        try {
+          const metadata = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
+          dominantColor = metadata.dominantColor;
+        } catch (error) {
+          console.warn(`Failed to read metadata for ${webpFileName}`);
+        }
+      }
+      
+      return { localPath: `/images/${webpFileName}`, dominantColor };
     }
     
     // If no local WebP, warn and return null
     console.warn(`⚠️  Local image not found: ${webpFileName}. Run 'npm run sync-images' to download from WordPress.`);
-    return null;
+    return { localPath: null, dominantColor: null };
   } catch (error) {
     console.error(`Failed to check local image ${imageUrl}:`, error);
-    return null;
+    return { localPath: null, dominantColor: null };
   }
 }
 
@@ -138,7 +151,9 @@ export async function fetchWordPressPosts({ first = 100 } = {}) {
 export async function transformWordPressPost(wpPost) {
   // Get local image path (no downloading)
   const originalHeroImage = wpPost.featuredImage?.node?.sourceUrl || null;
-  const heroImage = originalHeroImage ? getLocalImage(originalHeroImage) : null;
+  const imageResult = originalHeroImage ? getLocalImage(originalHeroImage) : { localPath: null, dominantColor: null };
+  const heroImage = imageResult.localPath;
+  const dominantColor = imageResult.dominantColor;
   const imageWidth = wpPost.featuredImage?.node?.mediaDetails?.width || null;
   const imageHeight = wpPost.featuredImage?.node?.mediaDetails?.height || null;
 
@@ -155,9 +170,9 @@ export async function transformWordPressPost(wpPost) {
     const images = Array.from(content.matchAll(imageRegex));
     
     for (const [fullMatch, imageUrl] of images) {
-      const localPath = getLocalImage(imageUrl);
-      if (localPath) {
-        content = content.replace(fullMatch, `src="${localPath}"`);
+      const imageResult = getLocalImage(imageUrl);
+      if (imageResult.localPath) {
+        content = content.replace(fullMatch, `src="${imageResult.localPath}"`);
       } else {
         content = content.replace(fullMatch, 'src=""');
       }
@@ -184,6 +199,7 @@ export async function transformWordPressPost(wpPost) {
       heroImage,
       imageWidth,
       imageHeight,
+      dominantColor,
       author: wpPost.author?.node?.name,
       categories: wpPost.categories?.nodes || [],
       tags: wpPost.tags?.nodes || [],

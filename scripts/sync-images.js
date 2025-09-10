@@ -6,17 +6,39 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import sharp from 'sharp';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WORDPRESS_URL = process.env.WORDPRESS_URL || 'http://spacezine.local';
 const GRAPHQL_ENDPOINT = `${WORDPRESS_URL}/graphql`;
 
 /**
+ * Extract dominant color from image using Sharp
+ */
+async function extractDominantColor(imagePath) {
+  try {
+    const { dominant } = await sharp(imagePath).stats();
+    const { r, g, b } = dominant;
+    
+    // Convert RGB to hex
+    const hex = '#' + [r, g, b].map(x => {
+      const hex = x.toString(16);
+      return hex.length === 1 ? '0' + hex : hex;
+    }).join('');
+    
+    return hex;
+  } catch (error) {
+    console.warn(`Color extraction failed: ${error.message}`);
+    return null;
+  }
+}
+
+/**
  * Download image from WordPress and convert to WebP
  */
 async function downloadAndConvertImage(imageUrl) {
   if (!imageUrl || (!imageUrl.includes('.local') && !imageUrl.includes('localhost'))) {
-    return imageUrl;
+    return { localPath: imageUrl, dominantColor: null };
   }
 
   try {
@@ -31,14 +53,30 @@ async function downloadAndConvertImage(imageUrl) {
     // Check if WebP already exists
     if (fs.existsSync(webpPublicPath)) {
       console.log(`✓ WebP already exists: ${webpFileName}`);
-      return `/images/${webpFileName}`;
+      
+      // Extract color from existing WebP
+      const dominantColor = await extractDominantColor(webpPublicPath);
+      
+      // Save metadata if color extracted successfully
+      if (dominantColor) {
+        const metaDir = path.join(__dirname, '../public/images/meta');
+        if (!fs.existsSync(metaDir)) {
+          fs.mkdirSync(metaDir, { recursive: true });
+        }
+        
+        const metaFile = path.join(metaDir, `${webpFileName}.json`);
+        const metadata = { dominantColor };
+        fs.writeFileSync(metaFile, JSON.stringify(metadata, null, 2));
+      }
+      
+      return { localPath: `/images/${webpFileName}`, dominantColor };
     }
     
     console.log(`📥 Downloading: ${fileName}`);
     const response = await fetch(imageUrl);
     if (!response.ok) {
       console.error(`❌ Failed to download ${imageUrl}: ${response.status}`);
-      return null;
+      return { localPath: null, dominantColor: null };
     }
     
     const imageBuffer = await response.arrayBuffer();
@@ -49,6 +87,11 @@ async function downloadAndConvertImage(imageUrl) {
     }
     if (!fs.existsSync(distImagesDir)) {
       fs.mkdirSync(distImagesDir, { recursive: true });
+    }
+    
+    const metaDir = path.join(__dirname, '../public/images/meta');
+    if (!fs.existsSync(metaDir)) {
+      fs.mkdirSync(metaDir, { recursive: true });
     }
     
     // Save original temporarily
@@ -72,13 +115,24 @@ async function downloadAndConvertImage(imageUrl) {
       console.log(`✅ Converted: ${fileName} → ${webpFileName}`);
     } catch (conversionError) {
       console.error(`❌ WebP conversion failed for ${fileName}:`, conversionError.message);
-      return `/images/${fileName}`;
+      return { localPath: `/images/${fileName}`, dominantColor: null };
     }
     
-    return `/images/${webpFileName}`;
+    // Extract dominant color from WebP using Sharp
+    const dominantColor = await extractDominantColor(webpPublicPath);
+    if (dominantColor) {
+      console.log(`🎨 Extracted color: ${dominantColor}`);
+    }
+    
+    // Save metadata
+    const metaFile = path.join(metaDir, `${webpFileName}.json`);
+    const metadata = { dominantColor };
+    fs.writeFileSync(metaFile, JSON.stringify(metadata, null, 2));
+    
+    return { localPath: `/images/${webpFileName}`, dominantColor };
   } catch (error) {
     console.error(`❌ Failed to process ${imageUrl}:`, error.message);
-    return null;
+    return { localPath: null, dominantColor: null };
   }
 }
 
@@ -159,9 +213,9 @@ async function syncImages() {
       console.log(`\n📝 Processing: ${post.title}`);
       const result = await downloadAndConvertImage(heroImage);
       
-      if (result && result.includes('/images/')) {
+      if (result && result.localPath && result.localPath.includes('/images/')) {
         processed++;
-      } else if (result) {
+      } else if (result && result.localPath) {
         skipped++;
       } else {
         failed++;

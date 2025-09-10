@@ -59,7 +59,7 @@ const remainingPosts = allPosts.slice(12);
 			}
 			
 			.image-container {
-				background-color: #f0f0f0;
+				background-color: var(--bg-color, #f0f0f0);
 				border-radius: 8px;
 				overflow: hidden;
 				margin-bottom: 8px;
@@ -225,7 +225,8 @@ const remainingPosts = allPosts.slice(12);
 											style={{
 												'--img-padding': post.data.imageWidth && post.data.imageHeight 
 													? `${((post.data.imageHeight / post.data.imageWidth) * 100).toFixed(2)}%` 
-													: '75%'
+													: '75%',
+												'--bg-color': post.data.dominantColor || '#f0f0f0'
 											}}
 										>
 											<img 
@@ -255,7 +256,8 @@ const remainingPosts = allPosts.slice(12);
 											style={{
 												'--img-padding': post.data.imageWidth && post.data.imageHeight 
 													? `${((post.data.imageHeight / post.data.imageWidth) * 100).toFixed(2)}%` 
-													: '75%'
+													: '75%',
+												'--bg-color': post.data.dominantColor || '#f0f0f0'
 											}}
 										>
 											<img 

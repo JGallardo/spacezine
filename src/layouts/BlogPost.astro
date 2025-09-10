@@ -12,13 +12,14 @@ interface Props {
 	heroImage?: string;
 	imageWidth?: number;
 	imageHeight?: number;
+	dominantColor?: string;
 	author?: string;
 	categories?: Array<{ name: string; slug: string }>;
 	tags?: Array<{ name: string; slug: string }>;
 	useNaturalAspectRatio?: boolean;
 }
 
-const { title, description, pubDate, updatedDate, heroImage, imageWidth, imageHeight, author, categories, tags, useNaturalAspectRatio } = Astro.props;
+const { title, description, pubDate, updatedDate, heroImage, imageWidth, imageHeight, dominantColor, author, categories, tags, useNaturalAspectRatio } = Astro.props;
 ---
 
 <html lang="en">
@@ -84,7 +85,10 @@ const { title, description, pubDate, updatedDate, heroImage, imageWidth, imageHe
 			<article>
 				<div class={`hero-image ${!useNaturalAspectRatio ? 'force-aspect-ratio' : ''}`}>
 					{heroImage && (
-						<div class="image-container">
+						<div 
+							class="image-container"
+							style={dominantColor ? `background-color: ${dominantColor}` : undefined}
+						>
 							<img 
 								width={imageWidth || 1020} 
 								height={imageHeight || 510} 
